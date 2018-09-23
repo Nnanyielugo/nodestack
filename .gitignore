@@ -72,5 +72,5 @@ typings/
 # Serverless directories
 .serverless
 
-tls/*
-!tls/.gitkeep
+pki/*
+!pki/.gitkeep

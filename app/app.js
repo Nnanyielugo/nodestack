@@ -63,21 +63,60 @@ const runInsecure = (app) => {
   });
 }
 
-/* init db and create table(s) if not exists */
-const initDB = async () => {
-  const client = new pg.Client({
+/* Connect to DB, retry for a while if necessary */
+const connectDB = async () => {
+  const ssl = {}
+
+  if (process.env.PG_TLS_CERT_FILE) {
+    console.log('connecting to postgres over tls');
+  
+    assert(process.env.PG_TLS_KEY_FILE, 'PG_TLS_KEY_FILE must be set');
+    assert(process.env.PG_TLS_CA_FILE, 'PG_TLS_CA_FILE must be set');
+
+    ssl.cert = fs.readFileSync(process.env.PG_TLS_CERT_FILE).toString(),
+    ssl.key = fs.readFileSync(process.env.PG_TLS_KEY_FILE).toString();
+    ssl.ca = fs.readFileSync(process.env.PG_TLS_CA_FILE).toString();
+  }
+
+  const clientConfig = {
     user: pgUser,
     host: pgHost,
     database: pgDB,
     password: pgPassword,
     port: pgPort,
-  });
-  await client.connect();
+    ssl
+  }
 
+  let retries = 5;
+  const retryWait = 5;
+
+  while (true) {
+    try {
+      const client = new pg.Client(clientConfig);
+      await client.connect();
+      return client;
+    } catch (err) {
+      if (--retries <= 0) throw err; // give up
+      console.warn(err);
+      console.warn(`pg connection failed, will retry in ${retryWait}s, ${retries} attempts left`);
+      await sleep(retryWait * 1000);
+    }
+  }
+}
+
+/* init db and create table(s) if not exists */
+const initDB = async () => {
+  const client = await connectDB();
   const ddl = 'CREATE TABLE IF NOT EXISTS shouts(id SERIAL PRIMARY KEY, text VARCHAR(255) not null)';
   await client.query(ddl);
-
   return client;
+}
+
+// async version of setTimeout
+const sleep = (millis) => {
+  return new Promise((resolve, _) => {
+    setTimeout(resolve, millis);
+  });
 }
 
 /* init redis client */
@@ -86,6 +125,7 @@ const initRedis = async () => {
   const redisClient = redis.createClient(redisURL);
   redisClient.on('error', (err) => {
     console.error('redis error', err);
+    process.exit(1); // just crash, let the orchestrator deal with it
   });
   return redisClient;
 }

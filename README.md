@@ -3,7 +3,7 @@
 ## Usage
 
 ```sh
-./init-tls.md # generate TLS certificates
+./init-pki.md # generate TLS certificates
 docker-compose up # start stack
 ```
 
@@ -35,7 +35,7 @@ curl --cacert tls/ca/root.crt https://localhost:4430/counter
 ### Shout Example (Postgres)
 
 ```sh
-# create
+# create (repeat as needed)
 curl \
   --cacert tls/ca/root.crt \
   -XPOST \
