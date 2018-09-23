@@ -7,12 +7,28 @@ const os = require('os');
 const https = require('https');
 const fs = require('fs');
 const redis = require('redis');
+const pg = require('pg');
 const counter = require('./counter');
+const whisper = require('./whisper');
 
 const port = process.env.PORT || 3000;
 const redisURL = process.env.REDIS_URL || 'redis://localhost:6379';
 
-console.log('using redis at',redisURL);
+const pgUser = process.env.PG_USER || 'pguser';
+const pgHost = process.env.PG_HOST || 'localhost';
+const pgPassword = process.env.PG_PASSWORD || null;
+const pgDB = process.env.PG_DATABASE || 'pgdb';
+const pgPort = process.env.PG_PORT || 5432;
+
+console.log('using redis at', redisURL);
+console.log('using postgres at', {pgUser, pgHost, pgDB, pgPort});
+
+// ensure we can exit via ctrl-c
+process.on('SIGINT', () => {
+  console.log('bye\n');
+  process.exit();
+});
+
 
 /** run application with TLS */
 const runSecure = (app) => {
@@ -47,44 +63,69 @@ const runInsecure = (app) => {
   });
 }
 
-// ensure we can exit via ctrl-c
-process.on('SIGINT', () => {
-  console.log('bye\n');
-  process.exit();
-});
+/* init db and create table(s) if not exists */
+const initDB = async () => {
+  const client = new pg.Client({
+    user: pgUser,
+    host: pgHost,
+    database: pgDB,
+    password: pgPassword,
+    port: pgPort,
+  });
+  await client.connect();
 
-// init redis client
-const redisClient = redis.createClient(redisURL);
-redisClient.on('error', (err) => {
-  console.error('Something went wrong ', err);
+  const ddl = 'CREATE TABLE IF NOT EXISTS shouts(id SERIAL PRIMARY KEY, text VARCHAR(255) not null)';
+  await client.query(ddl);
+
+  return client;
+}
+
+/* init redis client */
+const initRedis = async () => {
+  // init redis client
+  const redisClient = redis.createClient(redisURL);
+  redisClient.on('error', (err) => {
+    console.error('redis error', err);
+  });
+  return redisClient;
+}
+
+/* init app */
+const init = async () => {
+  const redisClient = await initRedis();
+  const pgClient = await initDB();
+
+  // setup webapp
+  const app = express();
+  // middleware
+  app.use(morgan('tiny'));
+  app.use(express.json());
+
+  // hello
+  app.get('/', (req, res) => {
+    res.status(200).json({
+      host: os.hostname(),
+      message: 'Hello!'
+    })
+  });
+
+  // simple redis based counter app
+  app.get('/counter', counter(redisClient));
+  app.use('/shout', whisper(pgClient));
+
+  // fallback route, 404
+  app.use((req, res) => {
+    res.status(404).send('nothing here');
+  });
+
+  if (process.env.TLS_CERT_FILE) {
+    runSecure(app);
+  } else {
+    runInsecure(app);
+  }
+}
+
+init().catch(err => {
+  console.error(err);
   process.exit(1);
 });
-
-// setup webapp
-const app = express();
-
-// middleware
-app.use(morgan('tiny'));
-
-// hello
-app.get('/', (req, res) => {
-  res.status(200).json({
-    host: os.hostname(),
-    message: 'Hello!'
-  })
-});
-
-// simple redis based counter app
-app.get('/counter', counter(redisClient));
-
-// fallback route, 404
-app.use((req, res) => {
-  res.status(404).send('nothing here');
-});
-
-
-if (process.env.TLS_CERT_FILE) {
-  runSecure(app);
-} else {
-  runInsecure(app);
-}

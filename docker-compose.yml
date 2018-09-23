@@ -27,6 +27,11 @@ services:
       TLS_KEY_FILE: /etc/tls/node.key
       TLS_CA_FILE: /etc/tls/ca.crt
       REDIS_URL: 'redis://redis:6379'
+      PG_HOST: postgres
+      PG_USER: pguser
+      PG_DATABASE: pgdb
+      PG_PASSWORD: abc123
+      PG_PORT: '5432'
     networks:
       nodestack:
         aliases:
@@ -42,6 +47,18 @@ services:
       - '6379:6379'
     networks:
       - nodestack
+
+  postgres:
+    image: postgres:9.6
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_PASSWORD: abc123 # insecure - use something like vault for this
+      POSTGRES_USER: pguser
+      POSTGRES_DB: pgdb
+    networks:
+      - nodestack
+    
 
 networks:
   nodestack:

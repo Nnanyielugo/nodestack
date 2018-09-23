@@ -13,19 +13,40 @@ Connection to LB (Nginx):
 
 ```sh
 # self signed certs, either use `--insecure` or pass CA cert
-$ curl --insecure https://localhost:4430
-Hello, I am container f027cb70f0d5
-...
-$ curl --cacert tls/ca/root.crt https://localhost:4430
-Hello, I am container f027cb70f0d5
+curl --insecure https://localhost:4430
+curl --cacert tls/ca/root.crt https://localhost:4430
 ```
 
 TLS client cert validation:
 
 ```sh
-# direct SSL connection to node app fails (no client cert)
-$ curl --cacert tls/ca/root.crt https://localhost:3000
-[...] sslv3 alert handshake failure
+# will result in SSL handshake failure (client cert is missing)
+curl --cacert tls/ca/root.crt https://localhost:3000
+```
+
+## Example App
+
+### Counter Example (Redis)
+
+```sh
+curl --cacert tls/ca/root.crt https://localhost:4430/counter
+```
+
+### Shout Example (Postgres)
+
+```sh
+# create
+curl \
+  --cacert tls/ca/root.crt \
+  -XPOST \
+  -H'Content-type: application/json' \
+  -d'{"text": "Hello world!"}' \
+  https://localhost:4430/shout
+
+# list
+curl \
+  --cacert tls/ca/root.crt \
+  https://localhost:4430/shout
 ```
 
 ## Verify SSL Certs
