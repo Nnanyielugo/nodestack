@@ -1,0 +1,48 @@
+version: '3.2'
+
+services:
+  nginx:
+    image: nginx:1.15
+    ports:
+      - '8080:80'
+      - '4430:443'
+    networks:
+      - nodestack
+    volumes:
+      - type: bind
+        source: ./nginx/default-lb.conf
+        target: /etc/nginx/conf.d/default.conf
+      - type: bind
+        source: ./tls/nginx
+        target: /etc/nginx/tls
+
+  app:
+    build: app/
+    image: nodestack/app
+    ports:
+      - '3000:3000' # for testing, not needed in rl
+    environment:
+      PORT: '3000'
+      TLS_CERT_FILE: /etc/tls/node.crt
+      TLS_KEY_FILE: /etc/tls/node.key
+      TLS_CA_FILE: /etc/tls/ca.crt
+      REDIS_URL: 'redis://redis:6379'
+    networks:
+      nodestack:
+        aliases:
+          - node.nodestack.local
+    volumes:
+      - type: bind
+        source: ./tls/node
+        target: /etc/tls
+
+  redis:
+    image: redis:4.0
+    ports:
+      - '6379:6379'
+    networks:
+      - nodestack
+
+networks:
+  nodestack:
+    driver: bridge
