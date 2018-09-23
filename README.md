@@ -59,14 +59,16 @@ openssl s_client -connect localhost:3000 -showcerts 2>/dev/null </dev/null | ope
 
 ### CPU
 
-- Node can't use more than one core
-- Nginx is relatively lighweight (resources, throughput of LB in HB?)
-- PostGres: high CPU when number of connections goes high
+- Node can't use more than one core, scale by running more instances
+- Nginx as proxy is relatively lighweight on CPU, can be neglected
+- Postgres: high CPU usage for indexing, search, aggregation (esp. with high number of connections)
+- Redis: k/v store, not many compute heavy operations
 
 ### Memory
 
 - Node: depends on workload, generally tends to be relatively lightweight
-- Database: PostGres is more of a CPU heavy workload, 
+- Postgres is relatively light on mem, likely to run out of CPU first
+- Redis = in memory DB, might need a lot of memory based on workload
 
 ### Scaling
 
