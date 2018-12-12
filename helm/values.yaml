@@ -1,0 +1,33 @@
+# Default values for whisper.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+postgres:
+  enabled: true
+  postgresqlUsername: whisper
+  postgresqlDatabase: whisper
+  postgresqlPassword: abc123
+  persistence:
+    enabled: true
+
+redis:
+  enabled: true
+  usePassword: false
+  persistence:
+    enabled: true
+
+whisper:
+  image:
+    repository: quay.io/joerx/whisper
+    tag: latest
+    pullPolicy: Always
+  service:
+    type: NodePort
+    port: 8000
+  config:
+    env:
+      pg_host: whisper-postgres
+      pg_database: whisper
+      pg_user: whisper
+      pg_password: abc123
+      redis_url: redis://whisper-redis-master/
