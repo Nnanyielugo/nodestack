@@ -65,26 +65,25 @@ const runInsecure = (app) => {
 
 /* Connect to DB, retry for a while if necessary */
 const connectDB = async () => {
-  const ssl = {}
-
-  if (process.env.PG_TLS_CERT_FILE) {
-    console.log('connecting to postgres over tls');
-  
-    assert(process.env.PG_TLS_KEY_FILE, 'PG_TLS_KEY_FILE must be set');
-    assert(process.env.PG_TLS_CA_FILE, 'PG_TLS_CA_FILE must be set');
-
-    ssl.cert = fs.readFileSync(process.env.PG_TLS_CERT_FILE).toString(),
-    ssl.key = fs.readFileSync(process.env.PG_TLS_KEY_FILE).toString();
-    ssl.ca = fs.readFileSync(process.env.PG_TLS_CA_FILE).toString();
-  }
-
   const clientConfig = {
     user: pgUser,
     host: pgHost,
     database: pgDB,
     password: pgPassword,
-    port: pgPort,
-    ssl
+    port: pgPort
+  }
+  
+  if (process.env.PG_TLS_CERT_FILE) {
+    console.log('connecting to postgres over tls');
+    
+    assert(process.env.PG_TLS_KEY_FILE, 'PG_TLS_KEY_FILE must be set');
+    assert(process.env.PG_TLS_CA_FILE, 'PG_TLS_CA_FILE must be set');
+    
+    clientConfig.ssl = {
+      cert: fs.readFileSync(process.env.PG_TLS_CERT_FILE).toString(),
+      key: fs.readFileSync(process.env.PG_TLS_KEY_FILE).toString(),
+      ca: fs.readFileSync(process.env.PG_TLS_CA_FILE).toString(),
+    };
   }
 
   let retries = 5;
